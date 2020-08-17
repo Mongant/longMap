@@ -1,26 +1,17 @@
 package de.comparus.opensource.longmap;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class LongMapImpl<V> implements LongMap<V> {
 
-    private List<Node<V>> table;
+    private Set<Node<V>> table;
 
     public V put(long key, V value) {
-
         if (table == null || table.size() == 0) {
-            table = new ArrayList<>();
+            table = new HashSet<>();
         }
-
-        Optional<Node<V>> node = table.stream().filter(e -> e.getKey() == key).findFirst();
-        if(node.isPresent()) {
-            V oldVal;
-                oldVal = node.get().value;
-                table.set(table.indexOf(node.get()), newNode(key, value));
-            return oldVal;
-        } else {
+        if(!table.add(newNode(key, value))) {
+            remove(key);
             table.add(newNode(key, value));
         }
         return null;
@@ -39,8 +30,8 @@ public class LongMapImpl<V> implements LongMap<V> {
         V val = null;
         Optional<Node<V>> node = table.stream().filter(e -> e.getKey() == key).findFirst();
         if(node.isPresent()) {
-            val = node.get().getValue();
             table.remove(node.get());
+            val = node.get().getValue();
         }
         return val;
     }
@@ -54,26 +45,41 @@ public class LongMapImpl<V> implements LongMap<V> {
     }
 
     public boolean containsKey(long key) {
-        return table.stream().anyMatch(e -> e.getKey() == key);
+        boolean isPresent = false;
+        if(table != null) {
+            isPresent = table.stream().anyMatch(e -> e.getKey() == key);
+        }
+        return isPresent;
     }
 
     public boolean containsValue(V value) {
-        return table.stream().anyMatch(e -> e.getValue() == value);
+        boolean isPresent = false;
+        if(table != null) {
+            isPresent = table.stream().anyMatch(e -> e.getValue().equals(value));
+        }
+        return isPresent;
     }
 
+    @SuppressWarnings("unchecked")
     public long[] keys() {
         long[] keys = new long[table.size()];
-        for(int i = 0; i < table.size(); i++) {
-            keys[i] = table.get(i).getKey();
+        Object[] arrObjects;
+        arrObjects = table.toArray();
+        for(int i = 0; i < arrObjects.length; i++) {
+            Node<V> node = (Node<V>) arrObjects[i];
+            keys[i] = node.getKey();
         }
         return keys;
     }
-//
+
     @SuppressWarnings("unchecked")
     public V[] values() {
         V[] values = (V[]) new Object[table.size()];
-        for(int i = 0; i < table.size(); i++) {
-            values[i] = table.get(i).getValue();
+        Object[] arrObjects;
+        arrObjects = table.toArray();
+        for(int i = 0; i < arrObjects.length; i++) {
+            Node<V> node = (Node<V>) arrObjects[i];
+            values[i] = node.getValue();
         }
         return values;
     }
@@ -92,6 +98,11 @@ public class LongMapImpl<V> implements LongMap<V> {
         }
     }
 
+    /**
+     * Basic object for saving key and value parameters
+     *
+     * @param <V> type of value
+     */
     private static class Node<V> {
         private final long key;
         private final V value;
@@ -110,13 +121,37 @@ public class LongMapImpl<V> implements LongMap<V> {
         }
 
         @Override
+        public final boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            } else {
+                if (o instanceof Node) {
+                    Node<V> o2 = (Node<V>)o;
+                    return Objects.equals(this.key, o2.getKey());
+                }
+                return false;
+            }
+        }
+
+        @Override
+        public final int hashCode() {
+            return Objects.hashCode(this.key);
+        }
+
+        @Override
         public final String toString() {
             return key + "=" + value;
         }
     }
 
-    // Create a node
-    Node<V> newNode(long key, V value) {
+    /**
+     * Create a new node
+     *
+     * @param key object key (must be unique)
+     * @param value object value
+     * @return {@link Node}
+     */
+    private Node<V> newNode(long key, V value) {
         return new Node<>(key, value);
     }
 
